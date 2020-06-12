@@ -1,5 +1,6 @@
 #include <iostream>
 #include "wpush.hpp"
+#include "enums.hpp"
 #include <chrono>
 #include <thread>
 
@@ -15,6 +16,8 @@ int main()
     // make a proper screen class
     dev.screen_clear();
     dev.screen_display(0, 31, "WPN214");
+    dev.set_button(button::OctaveUp, button::Full);
+    dev.set_button(button::OctaveDown, button::Full);
     t1.select();
     t1.display({8, 8, 0, 0});
 

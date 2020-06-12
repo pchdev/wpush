@@ -161,8 +161,8 @@ private:
     device& m_device;
     midi_t m_index;
     midi_t m_octave = 3;
-    bool m_hold = false;
-    bool m_select = false;
+    bool m_hold    = false;
+    bool m_select  = false;
     grid m_grid;
     std::vector<midi_t> m_active;
     std::vector<midi_t> m_held;

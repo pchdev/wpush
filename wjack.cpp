@@ -9,6 +9,8 @@ jack_backend::jack_backend(device& dev) : backend(dev)
     m_aux_in = jack_port_register(m_client, "aux_in", WJACK_MIDI, WJACK_INPUT, 0);
     m_dev_out = jack_port_register(m_client, "dev_out", WJACK_MIDI, WJACK_OUTPUT, 0);
     m_aux_out = jack_port_register(m_client, "aux_out", WJACK_MIDI, WJACK_OUTPUT, 0);
+
+    assert(m_dev_in && m_aux_in && m_dev_out && m_aux_out);
     jack_set_process_callback(m_client, &jack_backend::process, this);
 }
 

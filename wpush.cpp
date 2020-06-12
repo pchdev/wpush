@@ -26,7 +26,7 @@ void grid::write(midi_t n0, midi_t color, midi_t mode,
     for (auto& pad : m_pads)
         if (pad.n0 == n0) {
             _status(ev) = 0x90+mode;
-            _index(ev) = pad.index;
+            _index(ev) = pad.index+36;
             _value(ev) = color;
             dev.write_sync_dev(ev);
             if (n++ == 1)
@@ -67,7 +67,6 @@ void track::update_octave(mdev& ev, int8_t d, mdwriter* w, midi_t f)
 {
     if (m_octave+d < 0 || m_octave+d > 10)
         return;
-
     for (auto& g : m_ghosts)
         update_note(ev, g.index, d, 0,w, f);
     for (auto& h : m_held)
@@ -120,7 +119,7 @@ void remove(std::vector<T>& vec, T& value)
 
 void track::dev_note_on(mdev& ev)
 {
-    auto const& gpad = m_grid.lookup_n0(_index(ev)-36);
+    auto const& gpad = m_grid.lookup_index(_index(ev)-36);
     midi_t nt1 = _octoffset(gpad.n0);
 
     if (contains(m_held, nt1))
@@ -142,7 +141,7 @@ void track::dev_note_on(mdev& ev)
 
 void track::dev_note_off(mdev& ev)
 {
-    auto const& gpad = m_grid.lookup_n0(_index(ev)-36);
+    auto const& gpad = m_grid.lookup_index(_index(ev)-36);
     midi_t nt1 = _octoffset(gpad.n0);
 
     if (m_hold) {
@@ -169,7 +168,7 @@ void track::dev_note_off(mdev& ev)
     }
     _index(ev) = nt1;
     m_device.write_sync_aux(ev);
-    m_grid.write(nt1, gpad.color, 0, ev, m_device);
+    m_grid.write(gpad.n0, gpad.color, 0, ev, m_device);
 }
 
 void track::aftertouch(mdev& ev)

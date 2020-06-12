@@ -24,8 +24,9 @@ struct mdev {
 class mdbuf {
 public:
     mdbuf() = delete;
-    mdbuf(ushort nbytes) : m_capacity(nbytes) {
-        m_data = new byte_t[nbytes]();
+    mdbuf(ushort nbytes) :
+        m_capacity(nbytes),
+        m_data(new byte_t[nbytes]()) {
         clear();
     }
     ~mdbuf() {
