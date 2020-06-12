@@ -16,8 +16,9 @@ int main()
     // make a proper screen class
     dev.screen_clear();
     dev.screen_display(0, 31, "WPN214");
-    dev.set_button(button::OctaveUp, button::Full);
-    dev.set_button(button::OctaveDown, button::Full);
+    dev.set_button(button::OctaveUp, button::mode::Full);
+    dev.set_button(button::OctaveDown, button::mode::Full);
+    dev.set_button(button::Select, button::mode::Full);
     t1.select();
     t1.display({8, 8, 0, 0});
 

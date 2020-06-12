@@ -8,7 +8,7 @@ jack_backend::jack_backend(device& dev) : backend(dev)
     m_dev_in = jack_port_register(m_client, "dev_in", WJACK_MIDI, WJACK_INPUT, 0);
     m_aux_in = jack_port_register(m_client, "aux_in", WJACK_MIDI, WJACK_INPUT, 0);
     m_dev_out = jack_port_register(m_client, "dev_out", WJACK_MIDI, WJACK_OUTPUT, 0);
-    m_aux_out = jack_port_register(m_client, "aux_out", WJACK_MIDI, WJACK_OUTPUT, 0);
+    m_aux_out = jack_port_register(m_client, "aux_out", WJACK_MIDI, WJACK_OUTPUT, 0);   
 
     assert(m_dev_in && m_aux_in && m_dev_out && m_aux_out);
     jack_set_process_callback(m_client, &jack_backend::process, this);
@@ -17,6 +17,7 @@ jack_backend::jack_backend(device& dev) : backend(dev)
 int jack_backend::process(jack_nframes_t nframes, void* udata)
 {
     auto j = static_cast<jack_backend*>(udata);
+    j->m_nframes = nframes;
     jack_midi_event_t jmev;
     void* dev_in  = jack_port_get_buffer(j->m_dev_in, nframes);
     void* aux_in  = jack_port_get_buffer(j->m_aux_in, nframes);
@@ -62,7 +63,7 @@ void jack_backend::start()
     if (!m_aux.empty()) {
         dev_i = jack_get_ports(m_client, m_aux.c_str(), WJACK_MIDI, WJACK_INPUT);
         dev_o = jack_get_ports(m_client, m_aux.c_str(), WJACK_MIDI, WJACK_OUTPUT);
-        if (dev_i && dev_o) {
+        if (dev_i) {
             jack_connect(m_client, jack_port_name(m_aux_out), dev_i[0]);
         }
     }

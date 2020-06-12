@@ -27,9 +27,8 @@ public:
 
     mdwriter::mdw_fn wsync_fn() const override {
         return [this](mdev const& ev, void* output) {            
-            void* buf = jack_port_get_buffer((jack_port_t*)output, 512); // todo: get jack_nframes from 'this'
-            byte_t bt[3];
-            memcpy(bt, ev.data, 3);
+            void* buf = jack_port_get_buffer(
+                       (jack_port_t*)output, this->m_nframes);
             jack_midi_data_t* mdt;
             mdt = jack_midi_event_reserve(buf, ev.frameno, ev.nbytes);
             memcpy(mdt, ev.data, ev.nbytes);           
@@ -47,6 +46,7 @@ private:
     jack_port_t* m_dev_out = nullptr;
     jack_port_t* m_aux_out = nullptr;
     std::string m_aux;
+    jack_nframes_t m_nframes = 0;
 };
 }
 }

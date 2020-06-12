@@ -143,6 +143,7 @@ void track::dev_note_off(mdev& ev)
 {
     auto const& gpad = m_grid.lookup_index(_index(ev)-36);
     midi_t nt1 = _octoffset(gpad.n0);
+    midi_t final = gpad.n0;
 
     if (m_hold) {
         m_held.push_back(nt1);
@@ -156,7 +157,8 @@ void track::dev_note_off(mdev& ev)
         for (auto& ghost : m_ghosts) {
             midi_t gn = nt2+ ghost.octave*12;
             if (gn == ghost.index) {
-                nt1 = gn;
+                final = ghost.index-m_octave*12;
+                nt1 = gn;                
                 rem = &ghost;
                 break;
             }
@@ -164,16 +166,16 @@ void track::dev_note_off(mdev& ev)
         if (rem == nullptr)
             return;
         else
-            remove<ghost>(m_ghosts, *rem);
+            remove<ghost>(m_ghosts, *rem);            
     }
     _index(ev) = nt1;
     m_device.write_sync_aux(ev);
-    m_grid.write(gpad.n0, gpad.color, 0, ev, m_device);
+    m_grid.write(final, gpad.color, 0, ev, m_device);
 }
 
 void track::aftertouch(mdev& ev)
 {
-    grid::pad const& gpad = m_grid.lookup_n0(_index(ev));
+    auto const& gpad = m_grid.lookup_index(_index(ev)-36);
     _status(ev) += m_index;
     _index(ev) = _octoffset(gpad.n0);
     m_device.write_sync_aux(ev);
@@ -313,11 +315,13 @@ void device::process_button(mdev& ev)
     switch (_index(ev))
     {
     case button::OctaveUp: {
-        track.update_octave(ev, 1, &m_wsync);
+        _rel(ev)
+            track.update_octave(ev, 1, &m_wsync);
         break;
     }
     case button::OctaveDown: {
-        track.update_octave(ev, -1, &m_wsync);
+        _rel(ev)
+            track.update_octave(ev, -1, &m_wsync);
         break;
     }
     case button::Select: {
@@ -344,6 +348,7 @@ void device::process_mdev(mdev& ev)
         break;
     }
     case 0xa0: { // aftertouch
+        wt.aftertouch(ev);
         break;
     }
     case 0xb0: { // control

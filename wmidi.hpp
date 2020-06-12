@@ -16,7 +16,7 @@ using midi_t = uint8_t;
 
 /** simple struct representing a single midi event with variable data size. */
 struct mdev {
-    midi_t frameno;
+    ushort frameno;
     midi_t nbytes;
     midi_t* data;
 };
