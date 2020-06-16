@@ -27,12 +27,17 @@ int jack_backend::process(jack_nframes_t nframes, void* udata)
     jack_midi_clear_buffer(dev_out);
     jack_midi_clear_buffer(aux_out);
 
+    // purge asynchronous buffer (device output)
     mdev* ev = nullptr;
     auto& mdbuf = j->m_dev.async_buffer();
     while ((ev = mdbuf.next())) {
         jack_midi_data_t* mdt;
         mdt = jack_midi_event_reserve(dev_out, 0, ev->nbytes);
         memcpy(mdt, ev->data, ev->nbytes);
+        if (j->m_log && ev->nbytes == 3) {
+            printf("[midi-async] status: %d, index: %d, value: %d\n",
+                   ev->data[0], ev->data[1], ev->data[2]);
+        }
     }
     mdbuf.clear();
     j->m_dev.process_tick(nframes);
@@ -54,11 +59,11 @@ void jack_backend::start()
     const char **dev_i, **dev_o;
     dev_i = jack_get_ports(m_client, WPUSH_DEV_NAME, WJACK_MIDI, WJACK_INPUT);
     dev_o = jack_get_ports(m_client, WPUSH_DEV_NAME, WJACK_MIDI, WJACK_OUTPUT);
-    assert(dev_i && dev_o);
-    jack_activate(m_client);
-    jack_connect(m_client, jack_port_name(m_dev_out), dev_i[1]);
-    jack_connect(m_client, dev_o[1], jack_port_name(m_dev_in));
-
+    jack_activate(m_client);    
+    if (dev_i && dev_o) {
+        jack_connect(m_client, jack_port_name(m_dev_out), dev_i[1]);
+        jack_connect(m_client, dev_o[1], jack_port_name(m_dev_in));
+    }
     // aux connect
     if (!m_aux.empty()) {
         dev_i = jack_get_ports(m_client, m_aux.c_str(), WJACK_MIDI, WJACK_INPUT);

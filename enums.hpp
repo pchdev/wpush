@@ -31,13 +31,6 @@ enum mode {
     GreenFullFast     = 24
 };
 
-enum ribbon {
-    Bend        = 0,
-    Modwheel    = 1,
-    Pan         = 2,
-    Volume      = 3
-};
-
 enum sensors {
     Knob_0,
     Knob_1,
@@ -51,6 +44,19 @@ enum sensors {
     Swing,
     Metronome,
     Ribbon = 12,
+};
+
+enum strip {
+    CustomPitchbend = 0,
+    CustomVolume = 1,
+    CustomPan = 2,
+    CustomDiscrete = 3,
+    CustomFree = 4,
+    Pitchbend = 5,
+    Volume = 6,
+    Pan = 7,
+    Discrete = 8,
+    Modwheel = 9
 };
 
 namespace button {

@@ -115,7 +115,8 @@ void remove(std::vector<T>& vec, T& value)
     vec.erase(std::remove(vec.begin(), vec.end(), value), vec.end());
 }
 
-#define _octoffset(_n0) _n0+m_octave*12
+#define _octoffset(_n0) \
+_n0+m_octave*12
 
 void track::dev_note_on(mdev& ev)
 {
@@ -175,6 +176,8 @@ void track::dev_note_off(mdev& ev)
 
 void track::aftertouch(mdev& ev)
 {
+    // we should check active note velocity
+    // trigger aftertouch only if it goes beyond a lot
     auto const& gpad = m_grid.lookup_index(_index(ev)-36);
     _status(ev) += m_index;
     _index(ev) = _octoffset(gpad.n0);
@@ -195,7 +198,7 @@ inline void device::write_sync_dev(mdev const& event)
     m_wsync.write(event, m_dev_out);
 }
 
-void device::set_backend(int type, std::string aux)
+void device::set_backend(int type)
 {
     switch (type) {
     case backend::alsa:
@@ -210,14 +213,21 @@ void device::set_backend(int type, std::string aux)
     m_wsync.set_wfn(m_backend->wsync_fn());
     m_dev_out = m_backend->dev_out_data();
     m_aux_out = m_backend->aux_out_data();
+}
+
+void device::connect(std::string aux)
+{
     m_backend->set_aux(aux);
     m_backend->start();
 }
 
+#define _mdwset(_mdw) \
+_mdw = _mdw == nullptr ? &m_wasync: w
+
 track&
 device::create_track(mdwriter* w, midi_t frame)
 {
-    w = w == nullptr ? &m_wasync : w;
+    _mdwset(w);
     m_tracks.emplace_back(*this, m_tracks.size());
     auto& t = m_tracks.back();
     t.set_layout(m_layouts[m_tracks.size()%4]);
@@ -233,11 +243,19 @@ device::create_track(layout l, mdwriter* w, midi_t frame)
 }
 
 void
+device::strip_setmode(midi_t mode, mdwriter* w, midi_t frame)
+{
+    _mdwset(w);
+    midi_t sysx[9] = { 0xf0, 0x47, 0x7f, 0x15, 0x63, 0x0, 0x1, mode, 0xf7 };
+    w->write(sysx, sizeof(sysx), frame, m_dev_out);
+}
+
+void
 device::screen_clearline(midi_t lineno, mdwriter* w, midi_t frame)
 {
+    _mdwset(w);
     midi_t index = lineno+0x1c;
     midi_t sysx[] = { 0xf0, 0x47, 0x7f, 0x15, index, 0x0, 0x0, 0xf7 };
-    w = w == nullptr ? &m_wasync : w;
     w->write(sysx, sizeof(sysx), frame, m_dev_out);
 }
 
@@ -252,6 +270,7 @@ void
 device::screen_display(midi_t row, midi_t col, std::string str,
                        mdwriter* w, midi_t frame)
 {
+    _mdwset(w);
     midi_t sysx[128];
     midi_t len = str.size()+1;
     memset(sysx, 0, sizeof(sysx));
@@ -264,7 +283,6 @@ device::screen_display(midi_t row, midi_t col, std::string str,
     sysx[7] = col;
     memcpy(&sysx[8], str.c_str(), len);
     sysx[8+len] = 0xf7;
-    w = w == nullptr ? &m_wasync : w;
     w->write(sysx, len+9, frame, m_dev_out);
 }
 
@@ -272,8 +290,8 @@ inline void
 device::mdwrite(midi_t status, midi_t b1, midi_t b2,
                 mdwriter* w, midi_t frame)
 {
+    _mdwset(w);
     midi_t mdt[] = { status, b1, b2 };
-    w = w == nullptr ? &m_wasync : w;
     w->write(mdt, sizeof(mdt), frame, m_dev_out);
 }
 
@@ -352,16 +370,49 @@ void device::process_mdev(mdev& ev)
         break;
     }
     case 0xb0: { // control
-        if (_index(ev) >= toggle::UpperFirst &&
-            _index(ev) <= toggle::UpperLast)
+        switch(_index(ev)) {
+        case 1: // modwheel (strip)
+        case 7: // volume (strip)
+        case 10: // pan (strip)
+            write_sync_aux(ev);
+            break;
+        case 20:
+        case 21:
+        case 22:
+        case 23:
+        case 24:
+        case 25:
+        case 26:
+        case 27:
             process_toggle(ev);
-        else if (_index(ev) >= 71 && _index(ev) <= 79) {
+            break;
+        case 71:
+        case 72:
+        case 73:
+        case 74:
+        case 75:
+        case 76:
+        case 77:
+        case 78:
+        case 79:
             process_knob(ev);
-        } else
+            break;
+        case 102:
+        case 103:
+        case 104:
+        case 105:
+        case 106:
+        case 107:
+        case 108:
+        case 109:
+            process_toggle(ev);
+            break;
+        default:
             process_button(ev);
+        }
         break;
     }
-    case 0xe0: {
+    case 0xe0: { // pitchbend
         write_sync_aux(ev);
         break;
     }

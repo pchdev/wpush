@@ -64,8 +64,8 @@ public:
 
 public:
     grid() { m_pads.reserve(64); }
-    void set_layout(layout const& l) { m_layout = l; }
-    wpn214::push::layout& layout() { return m_layout; };
+    void set_layout(layout const& l) noexcept { m_layout = l; }
+    wpn214::push::layout& layout() noexcept { return m_layout; };
 
     void set_rect(rect const r) {
         m_pads.clear();
@@ -86,13 +86,13 @@ public:
         m_rect = r;
     }
 
-    grid::pad& lookup_index(midi_t p0) {
+    grid::pad const& lookup_index(midi_t p0) const {
         for (auto& pad : m_pads)
             if (pad.index == p0)
                 return pad;
     }
 
-    grid::pad& lookup_n0(midi_t n0) {
+    grid::pad const& lookup_n0(midi_t n0) const {
         for (auto& pad : m_pads)
             if (pad.n0 == n0)
                 return pad;
@@ -101,7 +101,7 @@ public:
     void write(midi_t n0, midi_t color, midi_t mode,
                mdev &ev, device& dev);
 
-    std::vector<grid::pad>& pads() { return m_pads; }
+    std::vector<grid::pad>& pads() noexcept { return m_pads; }
 
 private:
     std::vector<grid::pad> m_pads;
@@ -121,13 +121,23 @@ public:
         mdev ev = { frame, nbytes, data };
         m_wfunc(ev, out);
     }
-
     void write(mdev const& ev, void* out) {
         m_wfunc(ev, out);
     }
 
 private:
     mdw_fn m_wfunc;
+};
+
+class ccknob {
+public:
+    ccknob() {}
+    ccknob(midi_t index) : m_index(index) {}
+    midi_t update(midi_t incdec);
+    midi_t value() const { return m_value; }
+private:
+    midi_t m_index = 0;
+    midi_t m_value = 0;
 };
 
 class track {
@@ -167,6 +177,7 @@ private:
     std::vector<midi_t> m_active;
     std::vector<midi_t> m_held;
     std::vector<ghost> m_ghosts;
+    std::array<ccknob, 8> m_cc;
 };
 
 class backend {
@@ -190,6 +201,7 @@ public:
     // sent during initialization, 8192 bytes is probably enough
     device(ushort mdcapacity = 8192) :
         m_async_buffer(mdcapacity) {
+        m_sel.reserve(8);
         m_wasync = mdwriter([this](mdev const& ev, void* data) {
            // note: we should be able to write aux out events as well..
            m_async_buffer.write(ev);
@@ -199,7 +211,7 @@ public:
         for (auto& track : m_tracks)
             if (track.index() == index)
                 return track;
-        assert(false);
+        throw std::exception();
     }
     class track& track(unsigned int index) {
         return operator[](index);
@@ -208,13 +220,14 @@ public:
     void write_sync_aux(const mdev& event);
     void write_sync_dev(const mdev& event);
     mdbuf& async_buffer() { return m_async_buffer; }
-    void set_backend(int type, std::string aux);
+    void set_backend(int type);
+    void connect(std::string aux);
 
     class track& create_track(mdwriter* w = nullptr, midi_t frame = 0);
     class track& create_track(layout l, mdwriter* w = nullptr, midi_t frame = 0);
     void remove_track(mdwriter* w = nullptr, midi_t frame = 0);
 
-    void set_ribbon(mdwriter* w = nullptr, midi_t frame = 0);
+    void strip_setmode(midi_t mode, mdwriter* w = nullptr, midi_t frame = 0);
     void screen_clearline(midi_t lineno, mdwriter* w = nullptr, midi_t frame = 0);
     void screen_clear(mdwriter* w = nullptr, midi_t frame = 0);
     void screen_display(midi_t row, midi_t col, std::string str,

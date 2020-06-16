@@ -28,10 +28,14 @@ public:
     mdwriter::mdw_fn wsync_fn() const override {
         return [this](mdev const& ev, void* output) {            
             void* buf = jack_port_get_buffer(
-                       (jack_port_t*)output, this->m_nframes);
+                       (jack_port_t*)output, m_nframes);
             jack_midi_data_t* mdt;
             mdt = jack_midi_event_reserve(buf, ev.frameno, ev.nbytes);
-            memcpy(mdt, ev.data, ev.nbytes);           
+            memcpy(mdt, ev.data, ev.nbytes);
+            if (m_log && ev.nbytes == 3) {
+                printf("[midi-sync] status: %d, index: %d, value: %d\n",
+                       ev.data[0], ev.data[1], ev.data[2]);
+            }
         };
     }
 
@@ -40,6 +44,7 @@ public:
     static int process(jack_nframes_t nframes, void* udata);
 
 private:
+    bool m_log = true;
     jack_client_t* m_client = nullptr;
     jack_port_t* m_dev_in = nullptr;
     jack_port_t* m_aux_in = nullptr;

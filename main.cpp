@@ -14,16 +14,18 @@ int main()
     auto& t1 = dev.create_track(chroma);
 
     // make a proper screen class
+    t1.select();
+    t1.display({8, 8, 0, 0});
     dev.screen_clear();
     dev.screen_display(0, 31, "WPN214");
     dev.set_button(button::OctaveUp, button::mode::Full);
     dev.set_button(button::OctaveDown, button::mode::Full);
-    dev.set_button(button::Select, button::mode::Full);
-    t1.select();
-    t1.display({8, 8, 0, 0});
+    dev.set_button(button::Select, button::mode::Full);    
+    dev.strip_setmode(strip::Pitchbend);
 
     try {
-        dev.set_backend(backend::jack, "REAPER");
+        dev.set_backend(backend::jack);
+        dev.connect("REAPER");
     } catch (std::exception& e) {
         printf("error: could not set specified backend (%s), "
                "aborting\n", e.what());
