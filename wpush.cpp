@@ -13,7 +13,7 @@ _mdev.data[0]
 _mdev.data[1]
 #define _value(_mdev)  \
 _mdev.data[2]
-#define _rel(_mdev)    \
+#define _release(_mdev)    \
 if (_mdev.data[2] == 0)
 
 //-----------------------------------------------------------------------------
@@ -22,10 +22,15 @@ if (_mdev.data[2] == 0)
 
 midi_t ccknob::update(midi_t incdec)
 {
-    if (incdec > 100)
+    if (incdec > 100) {
         m_value -= 127-incdec;
-    else
+        if (m_value < 0)
+            m_value = 0;
+    } else {
         m_value += incdec;
+        if (m_value > 127)
+            m_value = 127;
+    }
     return m_value;
 }
 
@@ -84,24 +89,24 @@ void track::stripswitch(mdev ev)
     m_device.set_strip(m_strip, ev);
 }
 
-void track::update_octave(mdev& ev, int8_t d)
+void track::update_octave(int8_t d, mdev& ev)
 {
     if (m_octave+d < 0 || m_octave+d > 10)
         return;
     for (auto& g : m_ghosts)
-        update_note(ev, g.index, d, 0);
+        update_note(g.index, d, 0, ev);
     for (auto& h : m_held)
-        update_note(ev, h, d, 10);
+        update_note(h, d, 10, ev);
     for (auto& a : m_active) {
         ghost g = { a, m_octave };
         m_ghosts.push_back(g);
-        update_note(ev, a, d, 0);
+        update_note(a, d, 0, ev);
     }
     m_active.clear();
     m_octave += d;
 }
 
-void track::update_note(mdev& ev, midi_t note, int8_t d, midi_t mode)
+void track::update_note(midi_t note, int8_t d, midi_t mode, mdev& ev)
 {
     int8_t n0 = note-m_octave*12;
     // these are the min/max n0 values
@@ -341,10 +346,12 @@ device::set_pad(midi_t index, midi_t color, midi_t mode, mdev ev)
 
 void device::process_knob(mdev& ev)
 {
+    char vstr[4] = {0};
     auto& track = m_tracks[0];
     midi_t index = _index(ev)-71;
-    track.knob(index).update(_value(ev));
-    // get lcd screen: display
+    auto value = track.knob(index).update(_value(ev));
+    sprintf(vstr, "%d", value);
+    screen_display(1, index*8-(strlen(vstr)/2), vstr, ev);
 }
 
 void device::process_toggle(mdev& ev)
@@ -356,20 +363,19 @@ void device::process_button(mdev& ev)
 {
     auto& track = m_tracks[0];
 
-    switch (_index(ev))
-    {
+    switch (_index(ev)) {
     case button::OctaveUp: {
-        _rel(ev)
-            track.update_octave(ev, 1);
+        _release(ev)
+            track.update_octave(1, ev);
         break;
     }
     case button::OctaveDown: {
-        _rel(ev)
-            track.update_octave(ev, -1);
+        _release(ev)
+            track.update_octave(-1, ev);
         break;
     }
     case button::Select: {
-        _rel(ev)
+        _release(ev)
             track.set_hold(ev);
         break;
     }

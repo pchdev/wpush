@@ -171,10 +171,10 @@ public:
         return m_cc[index];
     }
 
-    void update_octave(mdev& ev, int8_t delta);
+    void update_octave(int8_t delta, mdev& ev);
 
 private:
-    void update_note(mdev& ev, midi_t note, int8_t delta, midi_t mode);
+    void update_note(midi_t note, int8_t delta, midi_t mode, mdev& ev);
 
     device& m_device;
     midi_t m_index;
@@ -219,6 +219,7 @@ protected:
 //};
 
 class device {
+    friend class jack_backend;
 public:
     // there might be a lot of sysx/standard midi messages
     // sent during initialization, 8192 bytes is probably enough
@@ -250,19 +251,18 @@ public:
     class track& create_track(layout l, mdev ev = {});
     void remove_track(mdev ev = {});
 
-    void set_strip(midi_t mode, mdev ev = {});
     void screen_clearline(midi_t lineno, mdev ev = {});
     void screen_clear(mdev ev = {});
     void screen_display(midi_t row, midi_t col, std::string str, mdev ev = {});
 
+    void set_strip(midi_t mode, mdev ev = {});
     void set_button(midi_t index, midi_t mode, mdev ev = {});
     void set_toggle(midi_t row, midi_t index, midi_t mode, mdev ev = {});
     void set_pad(midi_t index, midi_t color, midi_t mode, mdev ev = {});
 
+private:
     void process_mdev(mdev& ev);
     void process_tick(ushort nframes);
-
-private:
     void process_toggle(mdev& ev);
     void process_knob(mdev& ev);
     void process_button(mdev& ev);
