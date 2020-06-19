@@ -16,9 +16,10 @@ using midi_t = uint8_t;
 
 /** simple struct representing a single midi event with variable data size. */
 struct mdev {
-    ushort frameno;
-    midi_t nbytes;
-    midi_t* data;
+    ushort frameno = 0;
+    midi_t nbytes = 0;
+    midi_t* data = nullptr;
+    bool null() const { return data == nullptr; }
 };
 
 class mdbuf {
@@ -39,7 +40,7 @@ public:
         ushort w = m_w.load();
         ushort nwi = w+nbytes+sizeof(mdev);
         if (nwi > m_capacity)
-            assert(false); // throw
+            throw std::exception();
         else {
             mdev& event = *(rcast<mdev*>(&m_data[w]));
             event.frameno = 0;

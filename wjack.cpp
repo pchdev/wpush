@@ -12,11 +12,23 @@ jack_backend::jack_backend(device& dev) : backend(dev)
 
     assert(m_dev_in && m_aux_in && m_dev_out && m_aux_out);
     jack_set_process_callback(m_client, &jack_backend::process, this);
+    jack_set_port_connect_callback(m_client, &jack_backend::on_connected, this);
+}
+
+void jack_backend::on_connected(jack_port_id_t a, jack_port_id_t b,
+                                int connected, void *udata)
+{
+    auto j = scast<jack_backend*>(udata);
+    jack_port_t* ap = jack_port_by_id(j->m_client, a);
+    jack_port_t* bp = jack_port_by_id(j->m_client, b);
+    if (connected && (ap == j->m_dev_in || bp == j->m_dev_in)) {
+        j->m_connected_cb();
+    }
 }
 
 int jack_backend::process(jack_nframes_t nframes, void* udata)
 {
-    auto j = static_cast<jack_backend*>(udata);
+    auto j = scast<jack_backend*>(udata);
     j->m_nframes = nframes;
     jack_midi_event_t jmev;
     void* dev_in  = jack_port_get_buffer(j->m_dev_in, nframes);

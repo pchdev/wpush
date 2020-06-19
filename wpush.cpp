@@ -5,6 +5,7 @@
 #include "enums.hpp"
 
 using namespace wpn214::push;
+using namespace wpn214;
 
 #define _status(_mdev) \
 _mdev.data[0]
@@ -14,6 +15,19 @@ _mdev.data[1]
 _mdev.data[2]
 #define _rel(_mdev)    \
 if (_mdev.data[2] == 0)
+
+//-----------------------------------------------------------------------------
+// KNOB
+//-----------------------------------------------------------------------------
+
+midi_t ccknob::update(midi_t incdec)
+{
+    if (incdec > 100)
+        m_value -= 127-incdec;
+    else
+        m_value += incdec;
+    return m_value;
+}
 
 //-----------------------------------------------------------------------------
 // GRID
@@ -45,12 +59,12 @@ void track::set_layout(const layout &l)
     m_grid.set_layout(l);
 }
 
-void track::display(rect r, mdwriter* w, midi_t frame)
+void track::display(rect r, mdev ev)
 {
     midi_t npads = r.w*r.h;
     m_grid.set_rect(r);
     for (auto& pad : m_grid.pads())
-        m_device.set_pad(pad.index, pad.color, pad.mode, w, frame);
+        m_device.set_pad(pad.index, pad.color, pad.mode, ev);
 }
 
 void track::select()
@@ -58,30 +72,31 @@ void track::select()
 
 }
 
-void track::set_octave(midi_t octave, mdwriter* w, midi_t frame)
+void track::next_stripmode(mdev& ev)
 {
-
+    m_strip = m_strip == strip::Pitchbend ?
+              strip::Modwheel : strip::Pitchbend;
+    m_device.strip_setmode(m_strip, ev);
 }
 
-void track::update_octave(mdev& ev, int8_t d, mdwriter* w, midi_t f)
+void track::update_octave(mdev& ev, int8_t d)
 {
     if (m_octave+d < 0 || m_octave+d > 10)
         return;
     for (auto& g : m_ghosts)
-        update_note(ev, g.index, d, 0,w, f);
+        update_note(ev, g.index, d, 0);
     for (auto& h : m_held)
-        update_note(ev, h, d, 10, w, f);
+        update_note(ev, h, d, 10);
     for (auto& a : m_active) {
         ghost g = { a, m_octave };
         m_ghosts.push_back(g);
-        update_note(ev, a, d, 0, w, f);
+        update_note(ev, a, d, 0);
     }
     m_active.clear();
     m_octave += d;
 }
 
-void track::update_note(mdev& ev, midi_t note, int8_t d, midi_t mode,
-                        mdwriter *w, midi_t f)
+void track::update_note(mdev& ev, midi_t note, int8_t d, midi_t mode)
 {
     int8_t n0 = note-m_octave*12;
     // these are the min/max n0 values
@@ -188,17 +203,31 @@ void track::aftertouch(mdev& ev)
 // DEVICE
 //-----------------------------------------------------------------------------
 
-inline void device::write_sync_aux(mdev const& event)
+inline void
+device::write_sync_aux(mdev const& event)
 {
     m_wsync.write(event, m_aux_out);
 }
 
-inline void device::write_sync_dev(mdev const& event)
+inline void
+device::write_sync_dev(mdev const& event)
 {
     m_wsync.write(event, m_dev_out);
 }
 
-void device::set_backend(int type)
+inline void
+device::mdwrite(midi_t arr[], midi_t size, mdev ev, void* output)
+{
+    bool null = ev.null();
+    ev.data = arr;
+    ev.nbytes = size;
+    if (null)
+        m_wasync.write(ev, output);
+    else
+        m_wsync.write(ev, output);
+}
+
+backend& device::set_backend(int type)
 {
     switch (type) {
     case backend::alsa:
@@ -213,6 +242,7 @@ void device::set_backend(int type)
     m_wsync.set_wfn(m_backend->wsync_fn());
     m_dev_out = m_backend->dev_out_data();
     m_aux_out = m_backend->aux_out_data();
+    return *m_backend;
 }
 
 void device::connect(std::string aux)
@@ -221,13 +251,9 @@ void device::connect(std::string aux)
     m_backend->start();
 }
 
-#define _mdwset(_mdw) \
-_mdw = _mdw == nullptr ? &m_wasync: w
-
 track&
-device::create_track(mdwriter* w, midi_t frame)
+device::create_track(mdev ev)
 {
-    _mdwset(w);
     m_tracks.emplace_back(*this, m_tracks.size());
     auto& t = m_tracks.back();
     t.set_layout(m_layouts[m_tracks.size()%4]);
@@ -235,42 +261,39 @@ device::create_track(mdwriter* w, midi_t frame)
 }
 
 track&
-device::create_track(layout l, mdwriter* w, midi_t frame)
+device::create_track(layout l, mdev ev)
 {
-    auto& t = create_track(w, frame);
+    auto& t = create_track(ev);
     t.set_layout(l);
     return t;
 }
 
 void
-device::strip_setmode(midi_t mode, mdwriter* w, midi_t frame)
+device::strip_setmode(midi_t mode, mdev ev)
 {
-    _mdwset(w);
     midi_t sysx[9] = { 0xf0, 0x47, 0x7f, 0x15, 0x63, 0x0, 0x1, mode, 0xf7 };
-    w->write(sysx, sizeof(sysx), frame, m_dev_out);
+    mdwrite(sysx, sizeof(sysx), ev, m_dev_out);
 }
 
 void
-device::screen_clearline(midi_t lineno, mdwriter* w, midi_t frame)
+device::screen_clearline(midi_t lineno, mdev ev)
 {
-    _mdwset(w);
     midi_t index = lineno+0x1c;
     midi_t sysx[] = { 0xf0, 0x47, 0x7f, 0x15, index, 0x0, 0x0, 0xf7 };
-    w->write(sysx, sizeof(sysx), frame, m_dev_out);
+    mdwrite(sysx, sizeof(sysx), ev, m_dev_out);
 }
 
 void
-device::screen_clear(mdwriter* w, midi_t frame)
+device::screen_clear(mdev ev)
 {
     for (int n = 0; n < 4; ++n)
-        screen_clearline(n, w, frame);
+        screen_clearline(n, ev);
 }
 
 void
 device::screen_display(midi_t row, midi_t col, std::string str,
-                       mdwriter* w, midi_t frame)
+                       mdev ev)
 {
-    _mdwset(w);
     midi_t sysx[128];
     midi_t len = str.size()+1;
     memset(sysx, 0, sizeof(sysx));
@@ -283,42 +306,44 @@ device::screen_display(midi_t row, midi_t col, std::string str,
     sysx[7] = col;
     memcpy(&sysx[8], str.c_str(), len);
     sysx[8+len] = 0xf7;
-    w->write(sysx, len+9, frame, m_dev_out);
+    mdwrite(sysx, len+9, ev, m_dev_out);
 }
 
 inline void
 device::mdwrite(midi_t status, midi_t b1, midi_t b2,
-                mdwriter* w, midi_t frame)
+                mdev ev)
 {
-    _mdwset(w);
     midi_t mdt[] = { status, b1, b2 };
-    w->write(mdt, sizeof(mdt), frame, m_dev_out);
+    mdwrite(mdt, sizeof(mdt), ev, m_dev_out);
 }
 
 void
 device::set_button(midi_t index, midi_t mode,
-                   mdwriter* w, midi_t frame)
+                   mdev ev)
 {
-    mdwrite(0xb0, index, mode, w, frame);
+    mdwrite(0xb0, index, mode, ev);
 }
 
 void
 device::set_toggle(midi_t row, midi_t index, midi_t mode,
-                   mdwriter* w, midi_t frame)
+                   mdev ev)
 {
-    mdwrite(0xb0, row+index, mode, w, frame);
+    mdwrite(0xb0, row+index, mode, ev);
 }
 
 void
 device::set_pad(midi_t index, midi_t color, midi_t mode,
-                mdwriter* w, midi_t frame)
+                mdev ev)
 {
-    mdwrite(0x90+mode, index+36, color, w, frame);
+    mdwrite(0x90+mode, index+36, color, ev);
 }
 
 void device::process_knob(mdev& ev)
 {
-
+    auto& track = m_tracks[0];
+    midi_t index = _index(ev)-71;
+    track.knob(index).update(_value(ev));
+    // get lcd screen: display
 }
 
 void device::process_toggle(mdev& ev)
@@ -334,12 +359,12 @@ void device::process_button(mdev& ev)
     {
     case button::OctaveUp: {
         _rel(ev)
-            track.update_octave(ev, 1, &m_wsync);
+            track.update_octave(ev, 1);
         break;
     }
     case button::OctaveDown: {
         _rel(ev)
-            track.update_octave(ev, -1, &m_wsync);
+            track.update_octave(ev, -1);
         break;
     }
     case button::Select: {
@@ -363,6 +388,11 @@ void device::process_mdev(mdev& ev)
     case 0x90: {
         if (_index(ev) >= 36)
             wt.dev_note_on(ev);
+        else switch (_index(ev)) {
+        case sensors::Swing:
+            wt.next_stripmode(ev);
+            break;
+        }
         break;
     }
     case 0xa0: { // aftertouch

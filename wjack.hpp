@@ -32,7 +32,8 @@ public:
             jack_midi_data_t* mdt;
             mdt = jack_midi_event_reserve(buf, ev.frameno, ev.nbytes);
             memcpy(mdt, ev.data, ev.nbytes);
-            if (m_log && ev.nbytes == 3) {
+            if (m_log && ev.data[0] != 160 &&
+                output == m_aux_out) {
                 printf("[midi-sync] status: %d, index: %d, value: %d\n",
                        ev.data[0], ev.data[1], ev.data[2]);
             }
@@ -41,7 +42,13 @@ public:
 
     void* dev_out_data() override { return m_dev_out; }
     void* aux_out_data() override { return m_aux_out; }
-    static int process(jack_nframes_t nframes, void* udata);
+
+    static int
+    process(jack_nframes_t nframes, void* udata);
+
+    static void
+    on_connected(jack_port_id_t a, jack_port_id_t b,
+                 int connect, void* udata);
 
 private:
     bool m_log = true;

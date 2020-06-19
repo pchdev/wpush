@@ -13,18 +13,18 @@ int main()
     wpn214::push::device dev;
     auto& t1 = dev.create_track(chroma);
 
-    // make a proper screen class
-    t1.select();
-    t1.display({8, 8, 0, 0});
-    dev.screen_clear();
-    dev.screen_display(0, 31, "WPN214");
-    dev.set_button(button::OctaveUp, button::mode::Full);
-    dev.set_button(button::OctaveDown, button::mode::Full);
-    dev.set_button(button::Select, button::mode::Full);    
-    dev.strip_setmode(strip::Pitchbend);
-
     try {
-        dev.set_backend(backend::jack);
+        auto& backend = dev.set_backend(backend::jack);
+        backend.set_connected_cb([&] {
+            t1.select();
+            t1.display({8, 8, 0, 0});
+            dev.screen_clear();
+            dev.screen_display(0, 31, "WPN214");
+            dev.set_button(button::OctaveUp, button::mode::Full);
+            dev.set_button(button::OctaveDown, button::mode::Full);
+            dev.set_button(button::Select, button::mode::Full);
+            dev.strip_setmode(strip::Pitchbend);
+        });
         dev.connect("REAPER");
     } catch (std::exception& e) {
         printf("error: could not set specified backend (%s), "

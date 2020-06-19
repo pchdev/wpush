@@ -90,12 +90,14 @@ public:
         for (auto& pad : m_pads)
             if (pad.index == p0)
                 return pad;
+        throw std::exception();
     }
 
     grid::pad const& lookup_n0(midi_t n0) const {
         for (auto& pad : m_pads)
             if (pad.n0 == n0)
                 return pad;
+        throw std::exception();
     }
 
     void write(midi_t n0, midi_t color, midi_t mode,
@@ -135,6 +137,8 @@ public:
     ccknob(midi_t index) : m_index(index) {}
     midi_t update(midi_t incdec);
     midi_t value() const { return m_value; }
+    midi_t index() const { return m_index; }
+    void set_index(midi_t index) { m_index = index; }
 private:
     midi_t m_index = 0;
     midi_t m_value = 0;
@@ -155,24 +159,28 @@ public:
 
     midi_t index() const noexcept { return m_index; }
     void set_layout(layout const& l);
-    void display(rect r, mdwriter* w = nullptr, midi_t frame = 0);
+    void display(rect r, mdev ev = {});
     void select();
-    void set_octave(midi_t octave, mdwriter* w = nullptr, midi_t frame = 0);
+    void next_stripmode(mdev& ev);
     void dev_note_on(mdev& ev);
     void dev_note_off(mdev& ev);
     void aftertouch(mdev& ev);
+    ccknob& knob(midi_t index) {
+        assert(index < m_cc.size());
+        return m_cc[index];
+    }
 
-    void update_octave(mdev& ev, int8_t delta, mdwriter* w = nullptr, midi_t frame = 0);
+    void update_octave(mdev& ev, int8_t delta);
 
 private:
-    void update_note(mdev& ev, midi_t note, int8_t delta, midi_t mode,
-                     mdwriter* w = nullptr, midi_t frame = 0);
+    void update_note(mdev& ev, midi_t note, int8_t delta, midi_t mode);
 
     device& m_device;
     midi_t m_index;
     midi_t m_octave = 3;
     bool m_hold    = false;
     bool m_select  = false;
+    midi_t m_strip = 5;
     grid m_grid;
     std::vector<midi_t> m_active;
     std::vector<midi_t> m_held;
@@ -191,9 +199,23 @@ public:
     virtual void* dev_out_data() = 0;
     virtual void* aux_out_data() = 0;
     virtual void stop() = 0;
+    virtual void set_connected_cb(std::function<void()> cb) {
+        m_connected_cb = cb;
+    }
+
 protected:
     device& m_dev;
+    std::function<void()> m_connected_cb;
 };
+
+//class screen {
+//public:
+//    screen(device& dev, midi_t div);
+//    void display(midi_t line, midi_t div, std::string const& str);
+//private:
+//    byte_t* m_buffer = nullptr;
+//    device& m_dev;
+//};
 
 class device {
 public:
@@ -220,27 +242,27 @@ public:
     void write_sync_aux(const mdev& event);
     void write_sync_dev(const mdev& event);
     mdbuf& async_buffer() { return m_async_buffer; }
-    void set_backend(int type);
+    backend &set_backend(int type);
     void connect(std::string aux);
 
-    class track& create_track(mdwriter* w = nullptr, midi_t frame = 0);
-    class track& create_track(layout l, mdwriter* w = nullptr, midi_t frame = 0);
-    void remove_track(mdwriter* w = nullptr, midi_t frame = 0);
+    class track& create_track(mdev ev = {});
+    class track& create_track(layout l, mdev ev = {});
+    void remove_track(mdwriter* w = nullptr, mdev ev = {});
 
-    void strip_setmode(midi_t mode, mdwriter* w = nullptr, midi_t frame = 0);
-    void screen_clearline(midi_t lineno, mdwriter* w = nullptr, midi_t frame = 0);
-    void screen_clear(mdwriter* w = nullptr, midi_t frame = 0);
+    void strip_setmode(midi_t mode, mdev ev = {});
+    void screen_clearline(midi_t lineno, mdev ev = {});
+    void screen_clear(mdev ev = {});
     void screen_display(midi_t row, midi_t col, std::string str,
-                        mdwriter* w = nullptr, midi_t frame = 0);
+                        mdev ev = {});
 
     void set_button(midi_t index, midi_t mode,
-                    mdwriter* w = nullptr, midi_t frame = 0);
+                    mdev ev = {});
 
     void set_toggle(midi_t row, midi_t index, midi_t mode,
-                    mdwriter* w = nullptr, midi_t frame = 0);
+                    mdev ev = {});
 
     void set_pad(midi_t index, midi_t color, midi_t mode,
-                 mdwriter* w = nullptr, midi_t frame = 0);
+                 mdev ev = {});
 
     void process_mdev(mdev& ev);
     void process_tick(ushort nframes);
@@ -250,7 +272,9 @@ private:
     void process_knob(mdev& ev);
     void process_button(mdev& ev);
     void mdwrite(midi_t status, midi_t b1, midi_t b2,
-                 mdwriter* w = nullptr, midi_t frame = 0);
+                 mdev ev = {});
+
+    void mdwrite(midi_t arr[], midi_t size, mdev ev, void *output);
 
     std::vector<class track> m_tracks;
     std::vector<class track*> m_sel;
