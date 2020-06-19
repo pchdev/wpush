@@ -23,7 +23,7 @@ int main()
             dev.set_button(button::OctaveUp, button::mode::Full);
             dev.set_button(button::OctaveDown, button::mode::Full);
             dev.set_button(button::Select, button::mode::Full);
-            dev.strip_setmode(strip::Pitchbend);
+            dev.set_strip(strip::Pitchbend);
         });
         dev.connect("REAPER");
     } catch (std::exception& e) {

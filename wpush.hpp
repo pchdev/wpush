@@ -161,7 +161,8 @@ public:
     void set_layout(layout const& l);
     void display(rect r, mdev ev = {});
     void select();
-    void next_stripmode(mdev& ev);
+    void set_hold(mdev ev = {});
+    void stripswitch(mdev ev = {});
     void dev_note_on(mdev& ev);
     void dev_note_off(mdev& ev);
     void aftertouch(mdev& ev);
@@ -242,27 +243,21 @@ public:
     void write_sync_aux(const mdev& event);
     void write_sync_dev(const mdev& event);
     mdbuf& async_buffer() { return m_async_buffer; }
-    backend &set_backend(int type);
-    void connect(std::string aux);
+    backend& set_backend(int type);
+    void connect(std::string aux = {});
 
     class track& create_track(mdev ev = {});
     class track& create_track(layout l, mdev ev = {});
-    void remove_track(mdwriter* w = nullptr, mdev ev = {});
+    void remove_track(mdev ev = {});
 
-    void strip_setmode(midi_t mode, mdev ev = {});
+    void set_strip(midi_t mode, mdev ev = {});
     void screen_clearline(midi_t lineno, mdev ev = {});
     void screen_clear(mdev ev = {});
-    void screen_display(midi_t row, midi_t col, std::string str,
-                        mdev ev = {});
+    void screen_display(midi_t row, midi_t col, std::string str, mdev ev = {});
 
-    void set_button(midi_t index, midi_t mode,
-                    mdev ev = {});
-
-    void set_toggle(midi_t row, midi_t index, midi_t mode,
-                    mdev ev = {});
-
-    void set_pad(midi_t index, midi_t color, midi_t mode,
-                 mdev ev = {});
+    void set_button(midi_t index, midi_t mode, mdev ev = {});
+    void set_toggle(midi_t row, midi_t index, midi_t mode, mdev ev = {});
+    void set_pad(midi_t index, midi_t color, midi_t mode, mdev ev = {});
 
     void process_mdev(mdev& ev);
     void process_tick(ushort nframes);
@@ -271,9 +266,8 @@ private:
     void process_toggle(mdev& ev);
     void process_knob(mdev& ev);
     void process_button(mdev& ev);
-    void mdwrite(midi_t status, midi_t b1, midi_t b2,
-                 mdev ev = {});
 
+    void mdwrite(midi_t status, midi_t b1, midi_t b2, mdev ev = {});
     void mdwrite(midi_t arr[], midi_t size, mdev ev, void *output);
 
     std::vector<class track> m_tracks;

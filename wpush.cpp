@@ -72,11 +72,16 @@ void track::select()
 
 }
 
-void track::next_stripmode(mdev& ev)
+void track::set_hold(mdev ev)
+{
+    m_hold = !m_hold;
+}
+
+void track::stripswitch(mdev ev)
 {
     m_strip = m_strip == strip::Pitchbend ?
               strip::Modwheel : strip::Pitchbend;
-    m_device.strip_setmode(m_strip, ev);
+    m_device.set_strip(m_strip, ev);
 }
 
 void track::update_octave(mdev& ev, int8_t d)
@@ -269,7 +274,7 @@ device::create_track(layout l, mdev ev)
 }
 
 void
-device::strip_setmode(midi_t mode, mdev ev)
+device::set_strip(midi_t mode, mdev ev)
 {
     midi_t sysx[9] = { 0xf0, 0x47, 0x7f, 0x15, 0x63, 0x0, 0x1, mode, 0xf7 };
     mdwrite(sysx, sizeof(sysx), ev, m_dev_out);
@@ -291,8 +296,8 @@ device::screen_clear(mdev ev)
 }
 
 void
-device::screen_display(midi_t row, midi_t col, std::string str,
-                       mdev ev)
+device::screen_display(midi_t row, midi_t col,
+                       std::string str, mdev ev)
 {
     midi_t sysx[128];
     midi_t len = str.size()+1;
@@ -310,30 +315,26 @@ device::screen_display(midi_t row, midi_t col, std::string str,
 }
 
 inline void
-device::mdwrite(midi_t status, midi_t b1, midi_t b2,
-                mdev ev)
+device::mdwrite(midi_t status, midi_t b1, midi_t b2, mdev ev)
 {
     midi_t mdt[] = { status, b1, b2 };
     mdwrite(mdt, sizeof(mdt), ev, m_dev_out);
 }
 
 void
-device::set_button(midi_t index, midi_t mode,
-                   mdev ev)
+device::set_button(midi_t index, midi_t mode, mdev ev)
 {
     mdwrite(0xb0, index, mode, ev);
 }
 
 void
-device::set_toggle(midi_t row, midi_t index, midi_t mode,
-                   mdev ev)
+device::set_toggle(midi_t row, midi_t index, midi_t mode, mdev ev)
 {
     mdwrite(0xb0, row+index, mode, ev);
 }
 
 void
-device::set_pad(midi_t index, midi_t color, midi_t mode,
-                mdev ev)
+device::set_pad(midi_t index, midi_t color, midi_t mode, mdev ev)
 {
     mdwrite(0x90+mode, index+36, color, ev);
 }
@@ -368,6 +369,8 @@ void device::process_button(mdev& ev)
         break;
     }
     case button::Select: {
+        _rel(ev)
+            track.set_hold(ev);
         break;
     }
     }
@@ -390,7 +393,7 @@ void device::process_mdev(mdev& ev)
             wt.dev_note_on(ev);
         else switch (_index(ev)) {
         case sensors::Swing:
-            wt.next_stripmode(ev);
+            wt.stripswitch(ev);
             break;
         }
         break;
