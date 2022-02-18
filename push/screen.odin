@@ -4,8 +4,7 @@ import "midi"
 import "core:mem"
 
 clear_screen :: proc(using device: ^Device) {
-    for n in 0..3 do
-        clear_line(device, midi_t(n));
+    for n in 0..3 do clear_line(device, midi_t(n));
 }
 
 clear_line :: proc(using device: ^Device, line: midi_t) {

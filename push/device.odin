@@ -53,8 +53,7 @@ deinitialize :: proc(using device: ^Device) {
     jack.deactivate(client);
     jack.close_client(client);
     delete(selection);
-    for _,n in tracks do
-        delete_track(device, &tracks[n]);
+    for _,n in tracks do delete_track(device, &tracks[n]);
     delete(tracks);
 }
 
@@ -69,7 +68,7 @@ jack_connect_callback :: proc(
     a: jack.port_id_t,
     b: jack.port_id_t,
     connected: c.int,
-        udata: rawptr
+        udata: rawptr,
 ){
     device := cast(^Device)(udata);
     ap := jack.port_by_id(device.client, a);
@@ -81,10 +80,10 @@ jack_connect_callback :: proc(
 }
 
 // registers procedure which will be called whenever push device is online
-set_connect_callback :: inline proc(
+set_connect_callback ::  proc(
       device: ^Device,
     callback: connect_callback,
-       udata: rawptr = nil
+       udata: rawptr = nil,
 ){
     device.connect_cb = callback;
     device.udata = udata;
@@ -112,8 +111,7 @@ connect_run :: proc(using device: ^Device, aux_dev: cstring) {
         jack.connect(client, jack.port_name(to_aux), mem.ptr_offset(aux_in, 0)^);
         jack.connect(client, mem.ptr_offset(aux_out, 0)^, jack.port_name(from_aux));
     } else {
-        if aux_dev != nil do
-           fmt.println("[push] aux device offline");
+        if aux_dev != nil do fmt.println("[push] aux device offline");
     }
     fmt.println("[push] application now running...");
     running = true;
@@ -161,11 +159,13 @@ process_device_event :: proc(using device: ^Device, event: ^midi.Event) {
     track: ^Track = selection[0];
     switch (midi.status(event)) {
     case 0x80:
-        if midi.index(event) >= 36 do
+        if midi.index(event) >= 36 {
             process_device_note_off(device, track, event);
+        }
     case 0x90:
-        if midi.index(event) >= 36 do
+        if midi.index(event) >= 36 {
             process_device_note_on(device, track, event);
+        }
 //        else do switch(Sensor(midi.index(event))) {
 //            case .Swing:
 //                switch_strip(device, track);
@@ -215,7 +215,7 @@ write_aux_sync :: proc(using device: ^Device, event: ^midi.Event) {
 }
 
 @(private)
-write_dev_sync :: inline proc(using device: ^Device, event: ^midi.Event) {
+write_dev_sync ::  proc(using device: ^Device, event: ^midi.Event) {
     nbytes := len(event.data);
     buffer := jack.get_port_buffer(to_device, 512);
     mdt := jack.reserve_midi_event(buffer, 0, auto_cast(nbytes));
@@ -224,7 +224,7 @@ write_dev_sync :: inline proc(using device: ^Device, event: ^midi.Event) {
 }
 
 @(private)
-write_dev_async :: inline proc(using device: ^Device, data: []midi_t) {
+write_dev_async ::  proc(using device: ^Device, data: []midi_t) {
     nbytes := len(data);
     ev := midi.pull_event(&async_dev, auto_cast(nbytes));
     mem.copy(raw_data(ev.data), raw_data(data), nbytes);
@@ -236,25 +236,25 @@ write_dev_async :: inline proc(using device: ^Device, data: []midi_t) {
 // ------------------------------------------------------------------------------------------------
 
 // turns on/off a pad on the physical device's grid
-set_pad :: inline proc(using device: ^Device, index: midi_t, color: Color, mode: Mode = .Off) {
+set_pad ::  proc(using device: ^Device, index: midi_t, color: Color, mode: Mode = .Off) {
     mdt := [3]midi_t { midi_t(mode)+0x90, index+36, midi_t(color) };
     write_dev_async(device, mdt[:]);
 }
 
 // turns on/off a toggle pad on the physical device's upper/lower rows
-set_toggle :: inline proc(using device: ^Device, row: Toggle_Row, index: midi_t, mode: Mode) {
+set_toggle ::  proc(using device: ^Device, row: Toggle_Row, index: midi_t, mode: Mode) {
     mdt := [3]midi_t { 0xb0, midi_t(row)+index, midi_t(mode) };
     write_dev_async(device, mdt[:]);
 }
 
 // turns on/off a specific device button
-set_button :: inline proc(using device: ^Device, index: Button, mode: Mode) {
+set_button ::  proc(using device: ^Device, index: Button, mode: Mode) {
     mdt := [3]midi_t { 0xb0, midi_t(index), midi_t(mode) };
     write_dev_async(device, mdt[:]);
 }
 
 // sets device's left-side strip/ribbon's mode
-set_strip_mode :: inline proc(using device: ^Device, mode: Strip) {
+set_strip_mode ::  proc(using device: ^Device, mode: Strip) {
     sysx := [9]midi_t { 0xf0, 0x47, 0x7f, 0x15, 0x63, 0x0, 0x1, midi_t(mode), 0xf7 };
     write_dev_async(device, sysx[:]);
 }
@@ -275,7 +275,7 @@ create_track :: proc(using device: ^Device, l: Layout = LAYOUT_DEFAULT) {
          active = make([dynamic]midi_t, 0, 16),
            held = make([dynamic]midi_t, 0, 16),
          ghosts = make([dynamic]Ghost, 0, 16),
-        ccknobs = {}
+        ccknobs = {},
     });
     track, ok := get_track(device, index);
     assert(ok);
@@ -290,8 +290,7 @@ delete_track :: proc(using device: ^Device, track: ^Track) {
 
 @(require_results)
 get_track :: proc(using device: ^Device, index: int) -> (^Track, bool) {
-    if len(tracks) <= index do
-         return nil, false;
+    if len(tracks) <= index do return nil, false;
     else do return &tracks[index], true;
 }
 

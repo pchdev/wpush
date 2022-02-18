@@ -16,7 +16,7 @@ Note :: enum midi_t {
     C7   = 84, CS7, D7, DS7, E7, F7, FS7, G7, GS7, A7, AS7, B7,
     C8   = 96, CS8, D8, DS8, E8, F8, FS8, G8, GS8, A8, AS8, B8,
     C9  = 108, CS9, D9, DS9, E9, F9, FS9, G9, GS9, A9, AS9, B9,
-    C10 = 120, CS10, D10, DS10, E10, F10, FS10, G10
+    C10 = 120, CS10, D10, DS10, E10, F10, FS10, G10,
 }
 
 Control :: enum midi_t {
@@ -24,7 +24,7 @@ Control :: enum midi_t {
         Modulation = 1,
  Breath_Controller = 2,
    Foot_Controller = 4,
-   Portamento_Time = 5
+   Portamento_Time = 5,
 }
 
 Status :: enum midi_t {
@@ -38,41 +38,41 @@ Status :: enum midi_t {
 
 Event :: struct {
      frame: uint,
-      data: []midi_t
+      data: []midi_t,
 }
 
-status :: inline proc(using event: ^Event) -> midi_t {
+status :: proc(using event: ^Event) -> midi_t {
     return data[0] & 0xf0;
 }
 
-index :: inline proc(using event: ^Event) -> midi_t {
+index :: proc(using event: ^Event) -> midi_t {
     return data[1];
 }
 
-value :: inline proc(using event: ^Event) -> midi_t {
+value :: proc(using event: ^Event) -> midi_t {
     return data[2];
 }
 
-is_null :: inline proc(using event: ^Event) -> bool {
+is_null :: proc(using event: ^Event) -> bool {
     return len(data) == 0;
 }
 
 Buffer :: struct {
     r: uint, w: uint,
-    data: []midi_t
+    data: []midi_t,
 }
 
 create_buffer :: proc(capacity: uint) -> Buffer {
     fmt.printf("[midi] allocating buffer (%d bytes)\n", capacity);
     using buf := Buffer {
         r = 0, w = 0,
-        data = make([]midi_t, capacity)
+        data = make([]midi_t, capacity),
     };
     zero_buffer(&buf);
     return buf;
 }
 
-zero_buffer :: inline proc(using buffer: ^Buffer) {
+zero_buffer :: proc(using buffer: ^Buffer) {
     mem.zero_slice(data);
 }
 
@@ -80,8 +80,7 @@ pull_event :: proc(buffer: ^Buffer, nbytes: uint) -> ^Event {
     w := buffer.w;
     s := uint(size_of(Event));
     nwi: uint = w+s+nbytes;
-    if int(nwi) > len(buffer.data) do
-       return nil;
+    if int(nwi) > len(buffer.data) do return nil;
     else {
         event := transmute(^Event)(&buffer.data[w]);
         event.frame = 0;
@@ -91,7 +90,7 @@ pull_event :: proc(buffer: ^Buffer, nbytes: uint) -> ^Event {
     }
 }
 
-write_event :: inline proc(buffer: ^Buffer, event: Event) {
+write_event :: proc(buffer: ^Buffer, event: Event) {
     target := pull_event(buffer, uint(len(event.data)));
     mem.copy(raw_data(target.data), raw_data(event.data), len(event.data));
 }
@@ -99,8 +98,7 @@ write_event :: inline proc(buffer: ^Buffer, event: Event) {
 next_event :: proc(buffer: ^Buffer) -> ^Event {
     r := buffer.r; // atomic load
     s := uint(size_of(Event));
-    if int(r) == len(buffer.data) || r == buffer.w do
-       return nil;
+    if int(r) == len(buffer.data) || r == buffer.w do return nil;
     else {
         event := transmute(^Event)(&buffer.data[r]);
         r += uint(len(event.data))+s;

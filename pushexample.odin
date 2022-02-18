@@ -4,7 +4,7 @@ import "push"
 import "core:time"
 import "core:fmt"
 
-seconds :: inline proc(n: time.Duration) -> time.Duration {
+seconds :: proc(n: time.Duration) -> time.Duration {
     return n * time.Second;
 }
 
@@ -29,8 +29,7 @@ main :: proc() {
     push.create_track(&device);
     push.connect_run(&device, "REAPER");
     for {
-        if device.running do
-           time.sleep(seconds(1));
+        if device.running do time.sleep(seconds(1));
         else do break;
     }
 }

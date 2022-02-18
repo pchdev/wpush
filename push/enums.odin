@@ -46,7 +46,7 @@ Button :: enum midi_t {
        Div_16th = 40,
      Div_16th_t = 41,
        Div_32nd = 42,
-     Div_32nd_t = 43
+     Div_32nd_t = 43,
 };
 
 // upper row will go from 20 to 27 (included)
@@ -66,7 +66,7 @@ Custom_Pitchbend = 0,
           Volume = 6,
              Pan = 7,
         Discrete = 8,
-        Modwheel = 9
+        Modwheel = 9,
 }
 
 Sensor :: enum midi_t {
@@ -104,7 +104,7 @@ Mode :: enum midi_t {
     Green_Dim_Fast = 21,
     Green_Full = 22,
     Green_Full_Slow = 23,
-    Green_Full_Fast = 24
+    Green_Full_Fast = 24,
 };
 
 Color :: enum midi_t {
